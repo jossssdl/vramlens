@@ -88,6 +88,7 @@ type Stats struct {
 	TPSMax      float64 `json:"tps_max"`
 	ParseRate   float64 `json:"json_parse_pct"`   // of all runs
 	SchemaRate  float64 `json:"schema_valid_pct"` // of all runs
+	Truncated   int     `json:"truncated_runs"`   // runs cut off at the token limit
 	Distinct    int     `json:"distinct_outputs"`
 	Determinism float64 `json:"determinism_pct"` // share of the most frequent output, among completed runs
 }
@@ -105,6 +106,9 @@ func Summarize(samples []Sample) Stats {
 			continue
 		}
 		completed++
+		if s.Truncated {
+			st.Truncated++
+		}
 		ttft = append(ttft, float64(s.TTFT)/float64(time.Millisecond))
 		if s.TPS > 0 {
 			tps = append(tps, s.TPS)

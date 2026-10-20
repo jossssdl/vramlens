@@ -162,3 +162,45 @@ func TestEtaMath(t *testing.T) {
 		t.Errorf("eta %v ok %v", eta, ok)
 	}
 }
+
+func TestQuickPresetBuildsFastConfig(t *testing.T) {
+	a := testApp()
+	a.models = []string{"qwen3.5:9b"}
+	a.st.Model = "qwen3.5:9b"
+	cfg, err := a.st.BenchConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.N != 3 || cfg.NumCtx != 2048 || cfg.MaxTokens != 256 || !cfg.NoThink || cfg.Concurrency != 1 {
+		t.Errorf("quick preset config wrong: %+v", cfg)
+	}
+	// Full path through the form: menu -> bench form -> Enter starts the run with that config.
+	a = key(a, tea.KeyMsg{Type: tea.KeyDown})
+	m, _ := a.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	a = m.(app)
+	a.st.Model = "qwen3.5:9b"
+	m, _ = a.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	a = m.(app)
+	if a.sc != scBenchRun || !a.run.cfg.NoThink || a.run.cfg.MaxTokens != 256 {
+		t.Fatalf("run not started with quick settings: sc=%v cfg=%+v", a.sc, a.run.cfg)
+	}
+	a.run.cancel()
+}
+
+func TestThinkingCapWarning(t *testing.T) {
+	a := testApp()
+	cmd := a.openBenchForm
+	_ = cmd
+	(&a).openBenchForm()
+	if strings.Contains(a.View(), "Thinking is ON") {
+		t.Error("Quick preset (thinking off) must not warn")
+	}
+	a.st.NoThink = false // the combination that produced 0% valid JSON on reasoning models
+	if !strings.Contains(a.View(), "Thinking is ON") {
+		t.Error("expected a warning when thinking is on with a low max-tokens cap")
+	}
+	a.st.MaxTokens = "2048"
+	if strings.Contains(a.View(), "Thinking is ON") {
+		t.Error("no warning with a generous cap")
+	}
+}

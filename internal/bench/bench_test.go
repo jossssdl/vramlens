@@ -251,3 +251,36 @@ func TestListModels(t *testing.T) {
 		t.Errorf("openai: %v %v", got, err)
 	}
 }
+
+func TestTruncationExplained(t *testing.T) {
+	// Ollama: only reasoning tokens, cut at the limit -> no answer.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, `{"message":{"thinking":"let me think"},"done":false}`)
+		fmt.Fprintln(w, `{"done":true,"done_reason":"length","eval_count":256,"eval_duration":1000000000}`)
+	}))
+	defer srv.Close()
+	samples, _ := Run(context.Background(), Config{Provider: Ollama, Endpoint: srv.URL, Model: "m", Schema: personSchema, N: 1, MaxTokens: 256}, nil)
+	s := samples[0]
+	if s.ParseOK || !s.Truncated || len(s.Violations) == 0 || !strings.Contains(s.Violations[0], "reasoning only") {
+		t.Errorf("reasoning-only: %+v", s)
+	}
+
+	// OpenAI: JSON cut mid-way, finish_reason=length.
+	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"name\\\":\\\"An\"}}]}\n\n")
+		fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n")
+	}))
+	defer srv2.Close()
+	samples, _ = Run(context.Background(), Config{Provider: OpenAI, Endpoint: srv2.URL, Model: "m", Schema: personSchema, N: 1}, nil)
+	s = samples[0]
+	if s.ParseOK || !s.Truncated || !strings.Contains(s.Violations[0], "cut off") {
+		t.Errorf("truncated: %+v", s)
+	}
+}
+
+func TestSummarizeCountsTruncation(t *testing.T) {
+	st := Summarize([]Sample{{Truncated: true}, {Truncated: true}, {ParseOK: true, SchemaOK: true}})
+	if st.Truncated != 2 {
+		t.Errorf("truncated %d", st.Truncated)
+	}
+}

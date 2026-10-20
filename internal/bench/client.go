@@ -55,6 +55,7 @@ type Sample struct {
 	SchemaOK   bool          `json:"schema_ok"` // ...that also satisfies the schema
 	Violations []string      `json:"violations,omitempty"`
 	Err        string        `json:"error,omitempty"`
+	Truncated  bool          `json:"truncated,omitempty"` // generation stopped at the token limit
 }
 
 // stream is what a protocol adapter reports back to the timing logic.
@@ -64,6 +65,8 @@ type streamResult struct {
 	tokens    int           // 0 if the server did not report any
 	decodeDur time.Duration // server-reported decode time, 0 if unknown
 	chunks    int
+	truncated bool // the server stopped at the token limit (done_reason/finish_reason = length)
+	thought   bool // reasoning tokens were streamed
 }
 
 // runOne issues one request and fills timing and validity fields.
@@ -102,6 +105,16 @@ func runOne(ctx context.Context, cfg Config, httpc *http.Client, idx int) Sample
 		s.TPS = float64(s.Tokens-1) / (s.Total - s.TTFT).Seconds()
 	}
 	s.ParseOK, s.SchemaOK, s.Violations = judge(res.text, cfg.Schema)
+	s.Truncated = res.truncated
+	if !s.ParseOK {
+		// Explain the usual causes first; the raw parser error follows.
+		switch {
+		case strings.TrimSpace(res.text) == "" && res.thought:
+			s.Violations = append([]string{"reasoning only, no answer — raise max tokens or disable thinking"}, s.Violations...)
+		case res.truncated:
+			s.Violations = append([]string{"cut off at the token limit — raise max tokens"}, s.Violations...)
+		}
+	}
 	return s
 }
 
@@ -196,10 +209,11 @@ func streamOllama(ctx context.Context, cfg Config, httpc *http.Client, start tim
 				Content  string `json:"content"`
 				Thinking string `json:"thinking"`
 			} `json:"message"`
-			Done      bool   `json:"done"`
-			Error     string `json:"error"`
-			EvalCount int    `json:"eval_count"`
-			EvalDur   int64  `json:"eval_duration"`
+			Done       bool   `json:"done"`
+			DoneReason string `json:"done_reason"`
+			Error      string `json:"error"`
+			EvalCount  int    `json:"eval_count"`
+			EvalDur    int64  `json:"eval_duration"`
 		}
 		if err := json.Unmarshal(line, &m); err != nil {
 			return res, fmt.Errorf("bad stream line: %w", err)
@@ -214,11 +228,15 @@ func streamOllama(ctx context.Context, cfg Config, httpc *http.Client, start tim
 				res.ttft = time.Since(start)
 			}
 			res.chunks++
+			if m.Message.Thinking != "" {
+				res.thought = true
+			}
 			sb.WriteString(m.Message.Content)
 		}
 		if m.Done {
 			res.tokens = m.EvalCount
 			res.decodeDur = time.Duration(m.EvalDur)
+			res.truncated = m.DoneReason == "length"
 		}
 	}
 	res.text = sb.String()
@@ -282,6 +300,7 @@ func streamOpenAI(ctx context.Context, cfg Config, httpc *http.Client, start tim
 					Content          string `json:"content"`
 					ReasoningContent string `json:"reasoning_content"`
 				} `json:"delta"`
+				FinishReason string `json:"finish_reason"`
 			} `json:"choices"`
 			Usage *struct {
 				CompletionTokens int `json:"completion_tokens"`
@@ -300,11 +319,17 @@ func streamOpenAI(ctx context.Context, cfg Config, httpc *http.Client, start tim
 			res.tokens = m.Usage.CompletionTokens
 		}
 		for _, c := range m.Choices {
+			if c.FinishReason == "length" {
+				res.truncated = true
+			}
 			if c.Delta.Content != "" || c.Delta.ReasoningContent != "" {
 				if res.chunks == 0 {
 					res.ttft = time.Since(start)
 				}
 				res.chunks++
+				if c.Delta.ReasoningContent != "" {
+					res.thought = true
+				}
 				sb.WriteString(c.Delta.Content)
 			}
 		}

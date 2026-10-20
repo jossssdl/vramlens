@@ -200,6 +200,12 @@ func (a app) renderForm(f *form) string {
 			l = append(l, a.modelsLine())
 		}
 	}
+	if f.title == "Benchmark a server" && a.st.Provider == "ollama" && !a.st.NoThink {
+		if n, err := strconv.Atoi(strings.TrimSpace(a.st.MaxTokens)); err == nil && n > 0 && n < 1024 {
+			l = append(l, "", render.Warn.Render("! Thinking is ON and max tokens is "+a.st.MaxTokens+": reasoning models can spend the whole"),
+				render.Warn.Render("  cap thinking and never answer (0% valid). Disable thinking or raise max tokens."))
+		}
+	}
 	if f.err != "" {
 		l = append(l, "", render.Bad.Render("✗ "+f.err))
 	}

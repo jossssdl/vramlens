@@ -61,7 +61,11 @@ func RunsTable(samples []bench.Sample, maxRows, width int) string {
 		case s.Err != "":
 			res = Bad.Render("✗ " + Trunc(s.Err, resW-2))
 		case !s.ParseOK:
-			res = Bad.Render("✗ not valid JSON")
+			why := "not valid JSON"
+			if len(s.Violations) > 0 {
+				why = s.Violations[0]
+			}
+			res = Bad.Render("✗ " + Trunc(why, resW-2))
 		case !s.SchemaOK:
 			res = Warn.Render("◐ " + Trunc(strings.Join(s.Violations, "; "), resW-2))
 		}
@@ -98,6 +102,9 @@ func Verdict(st bench.Stats) string {
 		return Dim.Render("No runs completed.")
 	case st.Errors == st.Runs:
 		return Bad.Render("✗ Every request failed — check that the server is running and the model name is right.")
+	case st.Truncated > 0 && st.Truncated*2 >= st.Runs-st.Errors:
+		return Bad.Render(fmt.Sprintf("✗ %d of %d answers hit the max-tokens limit before finishing.", st.Truncated, st.Runs)) +
+			Dim.Render(" Disable thinking (reasoning tokens count toward the cap) or raise max tokens.")
 	case st.SchemaRate >= 99.5 && st.Determinism >= 99.5:
 		return Good.Render("✓ Excellent: every answer matched the schema and all outputs were identical.")
 	case st.SchemaRate >= 99.5:
