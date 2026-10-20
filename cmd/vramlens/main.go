@@ -19,6 +19,7 @@ import (
 const usage = `vramlens - VRAM doctor and KV-cache calculator for local LLMs
 
 Usage:
+  vramlens                                     interactive menu
   vramlens check <huggingface-repo[:QUANT] | file.gguf | URL> [flags]
   vramlens bench --model <name> [flags]        (see: vramlens bench --help)
 
@@ -35,7 +36,16 @@ Environment:
 `
 
 func main() {
-	if len(os.Args) < 2 || os.Args[1] == "-h" || os.Args[1] == "--help" || os.Args[1] == "help" {
+	if len(os.Args) < 2 {
+		// Launched without arguments (e.g. double-click): open the interactive menu.
+		if isTerminal() {
+			runHome()
+			return
+		}
+		fmt.Print(usage)
+		return
+	}
+	if os.Args[1] == "-h" || os.Args[1] == "--help" || os.Args[1] == "help" {
 		fmt.Print(usage)
 		return
 	}
@@ -99,6 +109,21 @@ func runCheck(args []string) error {
 		return errors.New("missing target (HF repo, URL or .gguf path)")
 	}
 
+	return checkOnce(checkParams{target, *file, *quant, *vramGB, *ovMiB, *ovPct, *asJSON})
+}
+
+type checkParams struct {
+	target, file, quant string
+	vramGB              float64
+	overheadMiB         uint64
+	overheadPct         float64
+	asJSON              bool
+}
+
+// checkOnce resolves, reads and reports one model; shared by the CLI and the
+// interactive menu.
+func checkOnce(p checkParams) error {
+	target := p.target
 	token := os.Getenv("HF_TOKEN")
 	var (
 		tgt *gguf.Target
@@ -109,7 +134,7 @@ func runCheck(args []string) error {
 	} else if looksLocal(target) {
 		return fmt.Errorf("file not found: %s", target)
 	} else {
-		tgt, err = gguf.ResolveHF(target, *file, *quant, token)
+		tgt, err = gguf.ResolveHF(target, p.file, p.quant, token)
 	}
 	if err != nil {
 		return err
@@ -135,8 +160,8 @@ func runCheck(args []string) error {
 
 	hw := hardware.Detect()
 	vramTotal, vramFree := hw.TotalVRAM()
-	if *vramGB > 0 {
-		vramFree = uint64(*vramGB * (1 << 30))
+	if p.vramGB > 0 {
+		vramFree = uint64(p.vramGB * (1 << 30))
 		if vramTotal < vramFree {
 			vramTotal = vramFree
 		}
@@ -145,11 +170,11 @@ func runCheck(args []string) error {
 	res := calculator.Calculate(calculator.Config{
 		Meta:      meta,
 		VRAMFree:  vramFree,
-		Overhead:  *ovMiB << 20,
-		OverheadP: *ovPct / 100,
+		Overhead:  p.overheadMiB << 20,
+		OverheadP: p.overheadPct / 100,
 	})
 
-	if *asJSON {
+	if p.asJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		return enc.Encode(map[string]any{

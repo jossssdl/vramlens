@@ -84,7 +84,14 @@ cd vramlens
 go build -o vramlens ./cmd/vramlens      # vramlens.exe on Windows
 ```
 
-`vramlens` is a terminal tool: run it from a shell, not by double-clicking.
+### Interactive menu
+
+Run `vramlens` with no arguments — or double-click `vramlens.exe` — to open a menu:
+
+- **Diagnose a model**: type a Hugging Face repo or the path to a `.gguf` and get the memory report.
+- **Benchmark a server**: pick Ollama or an OpenAI-compatible server, choose a model (detected automatically from the server), set runs/concurrency/context and watch the live results.
+
+Your current GPU/RAM state is shown at the top. After each run the window stays open until you press Enter. Everything is also available as plain commands (below) for scripts and CI.
 
 ## Usage: `check`
 
@@ -175,7 +182,7 @@ internal/hardware/     RAM / VRAM detection
 internal/gguf/         GGUF header parser, local + HTTP Range sources, Hugging Face resolver
 internal/calculator/   Weights + KV-cache math and offload threshold
 internal/bench/        Ollama / OpenAI-compatible streaming client, JSON Schema validator, statistics
-internal/tui/          Live benchmark UI (bubbletea)
+internal/tui/          Interactive menu and live benchmark UI (bubbletea)
 internal/render/       Terminal reports and bars (lipgloss)
 ```
 

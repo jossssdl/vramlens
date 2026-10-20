@@ -308,3 +308,49 @@ func streamOpenAI(ctx context.Context, cfg Config, httpc *http.Client, start tim
 	}
 	return res, nil
 }
+
+// ListModels asks the server which models it offers (Ollama /api/tags,
+// OpenAI-compatible /v1/models). It is a convenience for interactive use.
+func ListModels(ctx context.Context, p Provider, endpoint, apiKey string) ([]string, error) {
+	path := "/api/tags"
+	if p == OpenAI {
+		path = "/v1/models"
+		if strings.HasSuffix(strings.TrimRight(endpoint, "/"), "/v1") {
+			path = "/models"
+		}
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, joinURL(endpoint, path), nil)
+	if err != nil {
+		return nil, err
+	}
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+	var body struct {
+		Models []struct {
+			Name string `json:"name"`
+		} `json:"models"`
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, m := range body.Models {
+		out = append(out, m.Name)
+	}
+	for _, m := range body.Data {
+		out = append(out, m.ID)
+	}
+	return out, nil
+}

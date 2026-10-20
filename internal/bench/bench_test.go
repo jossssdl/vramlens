@@ -229,3 +229,25 @@ func TestThinkingCountsForTTFTNotOutput(t *testing.T) {
 		t.Errorf("TTFT %v should be measured at the first (thinking) token", s.TTFT)
 	}
 }
+
+func TestListModels(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/tags":
+			fmt.Fprint(w, `{"models":[{"name":"a:1"},{"name":"b:2"}]}`)
+		case "/v1/models":
+			fmt.Fprint(w, `{"data":[{"id":"x"}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	got, err := ListModels(context.Background(), Ollama, srv.URL, "")
+	if err != nil || len(got) != 2 || got[1] != "b:2" {
+		t.Errorf("ollama: %v %v", got, err)
+	}
+	got, err = ListModels(context.Background(), OpenAI, srv.URL, "")
+	if err != nil || len(got) != 1 || got[0] != "x" {
+		t.Errorf("openai: %v %v", got, err)
+	}
+}
