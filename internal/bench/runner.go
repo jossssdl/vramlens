@@ -43,6 +43,9 @@ func Run(ctx context.Context, cfg Config, onSample func(Sample)) ([]Sample, erro
 		go func() {
 			defer wg.Done()
 			for i := range jobs {
+				if cfg.OnStart != nil {
+					cfg.OnStart(i)
+				}
 				s := runOne(ctx, cfg, httpc, i)
 				mu.Lock()
 				out[i], done[i] = s, true

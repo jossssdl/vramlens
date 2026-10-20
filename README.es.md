@@ -76,7 +76,7 @@ Hay un segundo problema cuando el modelo ya corre: las aplicaciones que necesita
 
 ## Instalación
 
-Requiere Go 1.22+.
+Requiere Go 1.24+.
 
 ```bash
 git clone https://github.com/jossssdl/vramlens.git
@@ -88,10 +88,10 @@ go build -o vramlens ./cmd/vramlens      # vramlens.exe en Windows
 
 Ejecuta `vramlens` sin argumentos —o haz doble clic en `vramlens.exe`— para abrir un menú:
 
-- **Diagnosticar un modelo**: escribe un repo de Hugging Face o la ruta de un `.gguf` y obtén el informe de memoria.
-- **Benchmark de un servidor**: elige Ollama o un servidor compatible con OpenAI, selecciona un modelo (se detecta solo desde el servidor), define ejecuciones/concurrencia/contexto y mira los resultados en vivo.
+- **Diagnosticar un modelo**: escribe un repo de Hugging Face o la ruta de un `.gguf`. Si el repo tiene muchos archivos, eliges de una lista que ya indica cuáles caben en tu VRAM. El informe muestra barras de memoria por tamaño de contexto, una línea de tiempo del offload a CPU y una recomendación; se desplaza con las flechas.
+- **Benchmark de un servidor**: elige Ollama o un servidor compatible con OpenAI, selecciona un modelo (se detecta solo desde el servidor) y un preset —**Quick** (por defecto), **Standard** o **Thorough**— o ajusta tú las ejecuciones, concurrencia, contexto, tokens máximos y razonamiento. Verás el progreso en vivo con tiempo transcurrido y ETA, estadísticas y tendencias acumuladas, y podrás guardar los resultados como JSON.
 
-Arriba se muestra el estado actual de tu GPU y RAM. Tras cada ejecución la ventana permanece abierta hasta que pulses Enter. Todo está disponible también como comandos simples (abajo) para scripts y CI.
+Arriba se muestra el estado actual de tu GPU y RAM. Todo está disponible también como comandos simples (abajo) para scripts y CI.
 
 ## Uso: `check`
 
@@ -155,6 +155,8 @@ vramlens bench --model llama3.1:8b -n 10 --json > resultado.json
 | `--schema <ruta>` | JSON Schema que debe cumplir la salida (por defecto, un schema de demostración) |
 | `-n`, `-c` | Número de peticiones (por defecto `10`) y concurrencia (por defecto `1`) |
 | `--temperature`, `--seed` | Control del muestreo (temperatura por defecto `0`) |
+| `--quick` | Preset rápido: 3 ejecuciones, contexto 2048, sin razonamiento, 256 tokens máx. (los flags explícitos tienen prioridad) |
+| `--max-tokens <n>` | Tope de tokens generados por petición (muy bajo trunca el JSON y cuenta como inválido) |
 | `--num-ctx <n>` | Solo Ollama: ventana de contexto; redúcela si el modelo no carga |
 | `--no-think` | Solo Ollama: desactiva el razonamiento en modelos «thinking» |
 | `--timeout <d>` | Timeout por petición (por defecto `2m`) |

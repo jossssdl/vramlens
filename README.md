@@ -76,7 +76,7 @@ A second problem shows up once the model runs: applications that need **structur
 
 ## Install
 
-Requires Go 1.22+.
+Requires Go 1.24+.
 
 ```bash
 git clone https://github.com/jossssdl/vramlens.git
@@ -88,10 +88,10 @@ go build -o vramlens ./cmd/vramlens      # vramlens.exe on Windows
 
 Run `vramlens` with no arguments — or double-click `vramlens.exe` — to open a menu:
 
-- **Diagnose a model**: type a Hugging Face repo or the path to a `.gguf` and get the memory report.
-- **Benchmark a server**: pick Ollama or an OpenAI-compatible server, choose a model (detected automatically from the server), set runs/concurrency/context and watch the live results.
+- **Diagnose a model**: type a Hugging Face repo or the path to a `.gguf`. If a repo has many files, pick one from a list that already tells you which ones fit your VRAM. The report shows memory bars per context size, a CPU-offload timeline and a recommendation; scroll with the arrow keys.
+- **Benchmark a server**: pick Ollama or an OpenAI-compatible server, choose a model (detected automatically from the server) and a preset — **Quick** (default), **Standard** or **Thorough** — or tune runs, concurrency, context, max tokens and reasoning yourself. Watch live progress with elapsed time and ETA, running statistics and trends, then save the results as JSON.
 
-Your current GPU/RAM state is shown at the top. After each run the window stays open until you press Enter. Everything is also available as plain commands (below) for scripts and CI.
+Your current GPU/RAM state is shown at the top. Everything is also available as plain commands (below) for scripts and CI.
 
 ## Usage: `check`
 
@@ -155,6 +155,8 @@ vramlens bench --model llama3.1:8b -n 10 --json > result.json
 | `--schema <path>` | JSON Schema the output must satisfy (default: built-in demo schema) |
 | `-n`, `-c` | Number of requests (default `10`) and concurrency (default `1`) |
 | `--temperature`, `--seed` | Sampling controls (temperature default `0`) |
+| `--quick` | Fast preset: 3 runs, 2048 context, no reasoning, 256 max tokens (explicit flags still win) |
+| `--max-tokens <n>` | Cap generated tokens per request (too low truncates the JSON and counts as invalid) |
 | `--num-ctx <n>` | Ollama only: context window; lower it if the model fails to load |
 | `--no-think` | Ollama only: disable reasoning output for thinking models |
 | `--timeout <d>` | Per-request timeout (default `2m`) |

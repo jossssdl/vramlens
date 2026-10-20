@@ -34,9 +34,13 @@ type Config struct {
 	Concurrency int
 	Temperature float64
 	Seed        *int
-	NumCtx      int           // Ollama only: context window (options.num_ctx); 0 = server default
-	NoThink     bool          // Ollama only: disable reasoning ("think": false)
-	Timeout     time.Duration // per request
+	NumCtx      int  // Ollama only: context window (options.num_ctx); 0 = server default
+	NoThink     bool // Ollama only: disable reasoning ("think": false)
+	MaxTokens   int  // cap on generated tokens (num_predict / max_tokens); 0 = server default
+	// OnStart, if set, is called from worker goroutines when request i begins;
+	// it must be safe for concurrent use.
+	OnStart func(index int)
+	Timeout time.Duration // per request
 }
 
 // Sample is the outcome of a single request.
@@ -152,6 +156,9 @@ func streamOllama(ctx context.Context, cfg Config, httpc *http.Client, start tim
 	if cfg.Seed != nil {
 		opts["seed"] = *cfg.Seed
 	}
+	if cfg.MaxTokens > 0 {
+		opts["num_predict"] = cfg.MaxTokens
+	}
 	if cfg.NumCtx > 0 {
 		opts["num_ctx"] = cfg.NumCtx
 	}
@@ -234,6 +241,9 @@ func streamOpenAI(ctx context.Context, cfg Config, httpc *http.Client, start tim
 	}
 	if cfg.Seed != nil {
 		body["seed"] = *cfg.Seed
+	}
+	if cfg.MaxTokens > 0 {
+		body["max_tokens"] = cfg.MaxTokens
 	}
 	if cfg.Schema != nil {
 		body["response_format"] = map[string]any{

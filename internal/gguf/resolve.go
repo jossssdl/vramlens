@@ -29,6 +29,10 @@ type Candidate struct {
 	first  string
 }
 
+// Path is the repo-relative path of the candidate's first file, usable as a
+// file selector for ResolveHF.
+func (c Candidate) Path() string { return c.first }
+
 // AmbiguousError lists the choices when a repo holds several GGUFs.
 type AmbiguousError struct {
 	Repo       string

@@ -1,4 +1,5 @@
-// Command vramlens diagnoses VRAM needs of local LLMs from their GGUF headers.
+// Command vramlens diagnoses VRAM needs of local LLMs from their GGUF headers
+// and benchmarks their speed and structured-output reliability.
 package main
 
 import (
@@ -7,23 +8,22 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
-	"vramlens/internal/calculator"
-	"vramlens/internal/gguf"
-	"vramlens/internal/hardware"
+	xterm "github.com/charmbracelet/x/term"
+
+	"vramlens/internal/probe"
 	"vramlens/internal/render"
+	"vramlens/internal/tui"
 )
 
-const usage = `vramlens - VRAM doctor and KV-cache calculator for local LLMs
+const usage = `vramlens - VRAM doctor, KV-cache calculator and JSON benchmark for local LLMs
 
 Usage:
   vramlens                                     interactive menu
   vramlens check <huggingface-repo[:QUANT] | file.gguf | URL> [flags]
   vramlens bench --model <name> [flags]        (see: vramlens bench --help)
 
-Flags:
+Flags for check:
   --file <name>        exact .gguf path inside a Hugging Face repo
   --quant <Q4_K_M>     select the GGUF whose name contains this string
   --vram-gb <n>        override free VRAM (GiB) instead of detecting it
@@ -33,23 +33,25 @@ Flags:
 
 Environment:
   HF_TOKEN             token for gated/private Hugging Face repos
+  NO_COLOR             disable colors
 `
 
 func main() {
 	if len(os.Args) < 2 {
 		// Launched without arguments (e.g. double-click): open the interactive menu.
 		if isTerminal() {
-			runHome()
+			if err := tui.RunApp(); err != nil {
+				fmt.Fprintln(os.Stderr, "error:", err)
+				os.Exit(1)
+			}
 			return
 		}
 		fmt.Print(usage)
 		return
 	}
-	if os.Args[1] == "-h" || os.Args[1] == "--help" || os.Args[1] == "help" {
-		fmt.Print(usage)
-		return
-	}
 	switch os.Args[1] {
+	case "-h", "--help", "help":
+		fmt.Print(usage)
 	case "check":
 		if err := runCheck(os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
@@ -70,14 +72,18 @@ func main() {
 	}
 }
 
-// looksLocal reports whether target is clearly a filesystem path rather than
-// a Hugging Face repo or URL (drive letter, backslash, or a bare .gguf name).
-func looksLocal(target string) bool {
-	if strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") {
-		return false
+// isTerminal reports whether stdout is an interactive terminal.
+func isTerminal() bool {
+	st, err := os.Stdout.Stat()
+	return err == nil && st.Mode()&os.ModeCharDevice != 0
+}
+
+// termWidth returns the terminal width, or 100 when unknown (pipes).
+func termWidth() int {
+	if w, _, err := xterm.GetSize(os.Stdout.Fd()); err == nil && w > 0 {
+		return w
 	}
-	return filepath.VolumeName(target) != "" || strings.Contains(target, `\`) ||
-		strings.HasSuffix(strings.ToLower(target), ".gguf")
+	return 100
 }
 
 func runCheck(args []string) error {
@@ -109,85 +115,18 @@ func runCheck(args []string) error {
 		return errors.New("missing target (HF repo, URL or .gguf path)")
 	}
 
-	return checkOnce(checkParams{target, *file, *quant, *vramGB, *ovMiB, *ovPct, *asJSON})
-}
-
-type checkParams struct {
-	target, file, quant string
-	vramGB              float64
-	overheadMiB         uint64
-	overheadPct         float64
-	asJSON              bool
-}
-
-// checkOnce resolves, reads and reports one model; shared by the CLI and the
-// interactive menu.
-func checkOnce(p checkParams) error {
-	target := p.target
-	token := os.Getenv("HF_TOKEN")
-	var (
-		tgt *gguf.Target
-		err error
-	)
-	if st, e := os.Stat(target); e == nil && !st.IsDir() {
-		tgt, err = gguf.ResolveLocal(target)
-	} else if looksLocal(target) {
-		return fmt.Errorf("file not found: %s", target)
-	} else {
-		tgt, err = gguf.ResolveHF(target, p.file, p.quant, token)
-	}
-	if err != nil {
-		return err
-	}
-
-	var src gguf.Source
-	if tgt.Local != "" {
-		src, err = gguf.OpenLocal(tgt.Local)
-	} else {
-		src, err = gguf.OpenHTTP(tgt.URL, token)
-	}
-	if err != nil {
-		return err
-	}
-	defer src.Close()
-	meta, err := gguf.Read(src)
-	if err != nil {
-		return fmt.Errorf("%s: %w", tgt.Display, err)
-	}
-	if tgt.Size > 0 {
-		meta.FileSize = tgt.Size
-	}
-
-	hw := hardware.Detect()
-	vramTotal, vramFree := hw.TotalVRAM()
-	if p.vramGB > 0 {
-		vramFree = uint64(p.vramGB * (1 << 30))
-		if vramTotal < vramFree {
-			vramTotal = vramFree
-		}
-	}
-
-	res := calculator.Calculate(calculator.Config{
-		Meta:      meta,
-		VRAMFree:  vramFree,
-		Overhead:  p.overheadMiB << 20,
-		OverheadP: p.overheadPct / 100,
+	res, err := probe.Check(probe.CheckParams{
+		Target: target, File: *file, Quant: *quant, VRAMGB: *vramGB,
+		OverheadMiB: *ovMiB, OverheadPct: *ovPct,
 	})
-
-	if p.asJSON {
+	if err != nil {
+		return err
+	}
+	if *asJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		return enc.Encode(map[string]any{
-			"target":   tgt.Display,
-			"hardware": hw,
-			"model":    meta,
-			"result":   res,
-		})
+		return enc.Encode(res)
 	}
-	name := tgt.Display
-	if meta.Name != "" && !strings.EqualFold(meta.Name, name) {
-		name = meta.Name + "  (" + tgt.Display + ")"
-	}
-	fmt.Print(render.Report(hw, vramTotal, vramFree, name, meta, tgt.Shards, res))
+	fmt.Println(render.CheckReport(res, *vramGB > 0, termWidth()))
 	return nil
 }
