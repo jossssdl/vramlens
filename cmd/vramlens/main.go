@@ -22,6 +22,7 @@ Usage:
   vramlens                                     interactive menu
   vramlens check <huggingface-repo[:QUANT] | file.gguf | URL> [flags]
   vramlens bench --model <name> [flags]        (see: vramlens bench --help)
+  vramlens --version
 
 Flags for check:
   --file <name>        exact .gguf path inside a Hugging Face repo
@@ -52,6 +53,8 @@ func main() {
 	switch os.Args[1] {
 	case "-h", "--help", "help":
 		fmt.Print(usage)
+	case "-v", "--version", "version":
+		fmt.Println(versionString())
 	case "check":
 		if err := runCheck(os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
