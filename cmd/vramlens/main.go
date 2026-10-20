@@ -20,6 +20,7 @@ const usage = `vramlens - VRAM doctor and KV-cache calculator for local LLMs
 
 Usage:
   vramlens check <huggingface-repo[:QUANT] | file.gguf | URL> [flags]
+  vramlens bench --model <name> [flags]        (see: vramlens bench --help)
 
 Flags:
   --file <name>        exact .gguf path inside a Hugging Face repo
@@ -41,6 +42,15 @@ func main() {
 	switch os.Args[1] {
 	case "check":
 		if err := runCheck(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
+	case "bench":
+		if len(os.Args) > 2 && (os.Args[2] == "-h" || os.Args[2] == "--help") {
+			fmt.Print(benchUsage)
+			return
+		}
+		if err := runBench(os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			os.Exit(1)
 		}
