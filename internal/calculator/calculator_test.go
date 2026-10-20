@@ -3,7 +3,7 @@ package calculator
 import (
 	"testing"
 
-	"vramlens/internal/gguf"
+	"github.com/jossssdl/vramlens/internal/gguf"
 )
 
 func llama3_8B() *gguf.Metadata {

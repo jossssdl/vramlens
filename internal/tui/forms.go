@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"vramlens/internal/bench"
-	"vramlens/internal/render"
+	"github.com/jossssdl/vramlens/internal/bench"
+	"github.com/jossssdl/vramlens/internal/render"
 )
 
 const (

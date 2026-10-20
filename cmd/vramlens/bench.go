@@ -10,9 +10,9 @@ import (
 	"os/signal"
 	"time"
 
-	"vramlens/internal/bench"
-	"vramlens/internal/render"
-	"vramlens/internal/tui"
+	"github.com/jossssdl/vramlens/internal/bench"
+	"github.com/jossssdl/vramlens/internal/render"
+	"github.com/jossssdl/vramlens/internal/tui"
 )
 
 const benchUsage = `vramlens bench - latency, throughput and JSON-schema reliability of a local LLM server

@@ -1,4 +1,4 @@
-module vramlens
+module github.com/jossssdl/vramlens
 
 go 1.24.0
 

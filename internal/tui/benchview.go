@@ -11,8 +11,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"vramlens/internal/bench"
-	"vramlens/internal/render"
+	"github.com/jossssdl/vramlens/internal/bench"
+	"github.com/jossssdl/vramlens/internal/render"
 )
 
 type evtKind int

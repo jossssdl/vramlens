@@ -6,9 +6,9 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"vramlens/internal/calculator"
-	"vramlens/internal/hardware"
-	"vramlens/internal/probe"
+	"github.com/jossssdl/vramlens/internal/calculator"
+	"github.com/jossssdl/vramlens/internal/hardware"
+	"github.com/jossssdl/vramlens/internal/probe"
 )
 
 // HardwarePanel shows detected GPUs and RAM with usage gauges.

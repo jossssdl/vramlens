@@ -2,6 +2,11 @@
 
 [English](README.md) · **Español**
 
+[![CI](https://github.com/jossssdl/vramlens/actions/workflows/ci.yml/badge.svg)](https://github.com/jossssdl/vramlens/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/jossssdl/vramlens?include_prereleases&color=orange)](https://github.com/jossssdl/vramlens/releases)
+[![Go Reference](https://pkg.go.dev/badge/github.com/jossssdl/vramlens.svg)](https://pkg.go.dev/github.com/jossssdl/vramlens)
+[![License: MIT](https://img.shields.io/github/license/jossssdl/vramlens?color=yellow)](LICENSE)
+
 > Doctor de VRAM, calculadora de KV-Cache y benchmark de determinismo JSON para LLMs locales. Averigua si un modelo GGUF cabe en tu GPU —y a partir de qué contexto empieza a desbordarse a la CPU— **antes** de descargarlo, y mide después con qué fiabilidad produce salida estructurada.
 
 ## Contenido
@@ -76,7 +81,15 @@ Hay un segundo problema cuando el modelo ya corre: las aplicaciones que necesita
 
 ## Instalación
 
-Requiere Go 1.24+.
+**Descarga un binario** desde la página de [Releases](https://github.com/jossssdl/vramlens/releases) (Windows, Linux y macOS; amd64 y arm64), descomprímelo y ejecútalo desde una terminal. En Windows también puedes hacer doble clic en `vramlens.exe`. Verifica la descarga con `checksums.txt` (SHA-256).
+
+**O compila desde el código fuente** (requiere Go 1.24+):
+
+```bash
+go install github.com/jossssdl/vramlens/cmd/vramlens@latest
+```
+
+o desde un clon:
 
 ```bash
 git clone https://github.com/jossssdl/vramlens.git

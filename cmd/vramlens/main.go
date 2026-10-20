@@ -11,9 +11,9 @@ import (
 
 	xterm "github.com/charmbracelet/x/term"
 
-	"vramlens/internal/probe"
-	"vramlens/internal/render"
-	"vramlens/internal/tui"
+	"github.com/jossssdl/vramlens/internal/probe"
+	"github.com/jossssdl/vramlens/internal/render"
+	"github.com/jossssdl/vramlens/internal/tui"
 )
 
 const usage = `vramlens - VRAM doctor, KV-cache calculator and JSON benchmark for local LLMs

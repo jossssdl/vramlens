@@ -5,7 +5,7 @@ package calculator
 import (
 	"math"
 
-	"vramlens/internal/gguf"
+	"github.com/jossssdl/vramlens/internal/gguf"
 )
 
 // KVType is the storage precision of the KV cache.

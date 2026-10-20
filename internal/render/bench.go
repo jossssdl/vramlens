@@ -7,7 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"vramlens/internal/bench"
+	"github.com/jossssdl/vramlens/internal/bench"
 )
 
 func pctCol(p float64) lipgloss.TerminalColor {

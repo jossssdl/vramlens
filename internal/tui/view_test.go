@@ -10,11 +10,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"vramlens/internal/bench"
-	"vramlens/internal/calculator"
-	"vramlens/internal/gguf"
-	"vramlens/internal/hardware"
-	"vramlens/internal/probe"
+	"github.com/jossssdl/vramlens/internal/bench"
+	"github.com/jossssdl/vramlens/internal/calculator"
+	"github.com/jossssdl/vramlens/internal/gguf"
+	"github.com/jossssdl/vramlens/internal/hardware"
+	"github.com/jossssdl/vramlens/internal/probe"
 )
 
 func testApp() app {

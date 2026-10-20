@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"vramlens/internal/calculator"
-	"vramlens/internal/gguf"
-	"vramlens/internal/hardware"
+	"github.com/jossssdl/vramlens/internal/calculator"
+	"github.com/jossssdl/vramlens/internal/gguf"
+	"github.com/jossssdl/vramlens/internal/hardware"
 )
 
 // CheckParams selects a model and the memory assumptions.

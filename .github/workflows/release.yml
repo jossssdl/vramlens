@@ -1,0 +1,116 @@
+name: Release
+
+# Pushing a tag like v0.1.0 builds binaries for every platform and publishes a
+# GitHub release. Running the workflow by hand only builds the archives (kept as
+# workflow artifacts) so the packaging can be checked without publishing.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - {goos: linux, goarch: amd64}
+          - {goos: linux, goarch: arm64}
+          - {goos: darwin, goarch: amd64}
+          - {goos: darwin, goarch: arm64}
+          - {goos: windows, goarch: amd64}
+          - {goos: windows, goarch: arm64}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build and package
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then VERSION="${GITHUB_REF_NAME}"; else VERSION="dev-${GITHUB_SHA::7}"; fi
+          NAME="vramlens_${VERSION}_${GOOS}_${GOARCH}"
+          BIN="vramlens"; [ "$GOOS" = "windows" ] && BIN="vramlens.exe"
+          mkdir -p "dist/${NAME}"
+          go build -trimpath \
+            -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${GITHUB_SHA::7} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o "dist/${NAME}/${BIN}" ./cmd/vramlens
+          cp LICENSE README.md README.es.md "dist/${NAME}/"
+          cd dist
+          if [ "$GOOS" = "windows" ]; then
+            zip -qr "${NAME}.zip" "${NAME}"
+          else
+            tar -czf "${NAME}.tar.gz" "${NAME}"
+          fi
+          rm -rf "${NAME}"
+          ls -l
+
+      - name: Smoke test (linux/amd64)
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+        shell: bash
+        run: |
+          tar -xzf dist/*.tar.gz -C dist
+          ./dist/vramlens_*_linux_amd64/vramlens --version
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vramlens_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: publish release
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          cd dist
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          flags=""
+          # 0.x versions are previews.
+          case "$TAG" in v0.*) flags="--prerelease";; esac
+          cat > notes.md <<'EOF'
+          Command-line / terminal tool to check whether a GGUF model fits your GPU (VRAM + KV cache, CPU-offload threshold) and to benchmark local LLM servers (TTFT, tokens/s, JSON-schema validity, determinism).
+
+          **Download** the archive for your platform below, unpack it and run `vramlens` from a terminal (Windows: double-click `vramlens.exe` for the interactive menu). Verify the download with `checksums.txt` (SHA-256).
+
+          See the README for usage (English: `README.md`, Español: `README.es.md`).
+          EOF
+          gh release create "$TAG" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$TAG" \
+            --notes-file notes.md \
+            --generate-notes \
+            $flags

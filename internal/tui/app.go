@@ -12,11 +12,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"vramlens/internal/bench"
-	"vramlens/internal/gguf"
-	"vramlens/internal/hardware"
-	"vramlens/internal/probe"
-	"vramlens/internal/render"
+	"github.com/jossssdl/vramlens/internal/bench"
+	"github.com/jossssdl/vramlens/internal/gguf"
+	"github.com/jossssdl/vramlens/internal/hardware"
+	"github.com/jossssdl/vramlens/internal/probe"
+	"github.com/jossssdl/vramlens/internal/render"
 )
 
 type screen int
